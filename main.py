@@ -20,40 +20,23 @@ def hasObstacle(vecInpSens: np.int32, i: int) -> bool:
     return vecInpSens[i][2] == 1
 
 
-def avaliate_output(output, vecInpSens, pos, last_command, isInGoal, grabbed):
+def avaliate_game(reached, grabbed, win, dead, steppedOnFlash, reachedExit, dumbness, post_grab_survive):
     fitness = 0
-    # primeiro confere flash e goal
-    if (isInGoal and not grabbed):
-        return 1000
-        # return 1000 if output == 0 else -10
-    elif (hasFlash(vecInpSens, 0) and not grabbed):
-        fitness = 100 if output == 3 else -100
-    elif ((hasFlash(vecInpSens, 1) or hasGoal(vecInpSens, 1)) and not grabbed):
-        fitness = 100 if output == 11 else -100
-    elif ((hasFlash(vecInpSens, 2) or hasGoal(vecInpSens, 2)) and not grabbed):
-        fitness = 100 if output == 12 else -100
+    if steppedOnFlash:
+        fitness += 5
+    if reached:
+        fitness += 10
+    if grabbed:
+        fitness += 20
+    if reachedExit:
+        fitness += 30
+    if win:
+        fitness += 1000
+    if grabbed and dead:
+        fitness -= 10
 
-    elif (hasObstacle(vecInpSens, 0)):
-        if (hasObstacle(vecInpSens, 1)):
-            fitness = 2 if output in (12, 13) else -5
-        elif (hasObstacle(vecInpSens, 2)):
-            fitness = 2 if output in (11, 13) else -5
-        else:
-            if (last_command == 11):
-                fitness = 2 if output in (12, 13) else -5
-            elif (last_command == 12):
-                fitness = 2 if output in (11, 13) else -5
-            else:
-                fitness = 2 if output in (11, 12, 13) else -5
-    else:
-        if (last_command == 11 or last_command == 12):
-            fitness = 2 if output == 3 else -5
-        elif (hasObstacle(vecInpSens, 1)):
-            fitness = 2 if output in (3, 13) else -5
-        elif (hasObstacle(vecInpSens, 2)):
-            fitness = 2 if output in (3, 11) else -5
-        else:
-            fitness = 0 if output in (3, 11, 12) else -5
+    fitness -= dumbness
+    # fitness += post_grab_survive * 0.5
     return fitness
 
 
@@ -74,26 +57,29 @@ def simplify_vector(vector):
 def train_ai(genome, config):
     net = neat.nn.RecurrentNetwork.create(genome, config)
 
-    def infer(vecInpSens: np.int32) -> int:
-        vector = simplify_vector(vecInpSens).reshape(1, 21)[0]
+    def infer(vecInpSens: np.int32, grabbed) -> int:
+        vector = np.append(simplify_vector(vecInpSens).reshape(
+            1, 21), 1 if grabbed else 0).reshape(1, 22)[0]
         output = net.activate(vector)
         return output
-    return game(infer, ['f', 'l', 'r'], False, avaliate_output)
+    return game(infer, ['f', 'l', 'r'], False, avaliate_game)
 
 
 def run_neat(config):
     p = neat.Population(config)
-    # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-1297')
+    # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-630')
+    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-6388')
+    # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-4895')
     # p.config.no_fitness_termination = True
     p.config.fitness_criterion = 'mean'
-    p.config.fitness_threshold = 900
+    p.config.fitness_threshold = 800
     # p.config.activation_mutate_rate = 2.0
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
     p.add_reporter(neat.Checkpointer(1))
     pe = neat.ParallelEvaluator(15, train_ai)
-    winner = p.run(pe.evaluate, 1000)  # run for X generations
+    winner = p.run(pe.evaluate, 100000)  # run for X generations
     with open("best.pickle", "wb") as f:
         pickle.dump(winner, f)
     print('\nOutput:')
@@ -105,11 +91,12 @@ def test_best_network(config):
         winner = pickle.load(f)
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
 
-    def infer(vecInpSens: np.int32) -> int:
-        vector = simplify_vector(vecInpSens).reshape(1, 21)[0]
+    def infer(vecInpSens: np.int32, grabbed) -> int:
+        vector = np.append(simplify_vector(vecInpSens).reshape(
+            1, 21), 1 if grabbed else 0).reshape(1, 22)[0]
         output = winner_net.activate(vector)
         return output
-    game(infer, ['f', 'l', 'r'], True, avaliate_output)
+    game(infer, ['f', 'l', 'r'], True, avaliate_game)
 
 
 if __name__ == '__main__':
