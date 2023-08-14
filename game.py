@@ -27,107 +27,133 @@ import os
 '''
 
 baseMap = np.array([
-    [0,7,0,1,2,1,0,0,1,0],
-    [7,2,7,0,1,0,0,1,2,1],
-    [0,7,0,0,0,0,0,1,1,0],
-    [0,0,0,5,0,0,1,2,1,0],
-    [0,1,0,0,0,0,0,10,0,0],
-    [1,2,1,0,0,0,7,2,7,0],
-    [0,1,7,0,0,0,1,11,0,0],
-    [0,7,2,7,0,1,2,4,3,0],
-    [0,0,7,0,0,0,1,3,0,0],
-    [0,0,0,0,0,0,0,0,0,0]
+    [0, 7, 0, 1, 2, 1, 0, 0, 1, 0],
+    [7, 2, 7, 0, 1, 0, 0, 1, 2, 1],
+    [0, 7, 0, 0, 0, 0, 0, 1, 1, 0],
+    [0, 0, 0, 5, 0, 0, 1, 2, 1, 0],
+    [0, 1, 0, 0, 0, 0, 0, 10, 0, 0],
+    [1, 2, 1, 0, 0, 0, 7, 2, 7, 0],
+    [0, 1, 7, 0, 0, 0, 1, 11, 0, 0],
+    [0, 7, 2, 7, 0, 1, 2, 4, 3, 0],
+    [0, 0, 7, 0, 0, 0, 1, 3, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ])
-directions = ['u','r','d','l']
-dir_dic = {'u' : (-1,0), 'd' : (1,0), 'l' : (0,-1), 'r' : (0,1)}
+directions = ['u', 'r', 'd', 'l']
+dir_dic = {'u': (-1, 0), 'd': (1, 0), 'l': (0, -1), 'r': (0, 1)}
 reverse_dir_dic = {(-1, 0): 'u', (1, 0): 'd', (0, -1): 'l', (0, 1): 'r'}
-person_dict = {'u' : '⬆️', 'd' : '⬇️', 'l' : '⬅️', 'r' : '➡️'}
-char_vector = ['⬜','🌀','😈','✨','🏆','🏁','⬛','🦨', '✨', '✨', '🌀', '✨', '❌']
-mapped_movements = {0: 'g', 1: 'v', 3: 'f',  11: 'l', 12: 'r', 13: 'b'}
+person_dict = {'u': '⬆️', 'd': '⬇️', 'l': '⬅️', 'r': '➡️'}
+char_vector = ['⬜', '🌀', '😈', '✨', '🏆', '🏁', '⬛', '🦨', '✨', '✨', '🌀', '✨', '❌']
+mapped_movements = [0, 1, 3, 11, 12, 13]
+
 
 def print_state(map, pos, direction):
-  for i in range(map.shape[0]):
-    for j in range(map.shape[1]):
-      if (i, j) == pos:
-        print(person_dict[direction], end='  ')
-      else:
-        print(char_vector[map[i][j]], end=' ')
-    print()
+    for i in range(map.shape[0]):
+        for j in range(map.shape[1]):
+            if (i, j) == pos:
+                print(person_dict[direction], end='  ')
+            else:
+                print(char_vector[map[i][j]], end=' ')
+        print()
 
-def sense(map, pos, dir = -1):
-  if dir == -1: return map[pos]
 
-  shape = map.shape
-  dir = dir_dic[dir]
-  dest = (pos[0] + dir[0], pos[1] + dir[1])
+def sense(map, pos, dir=-1):
+    if dir == -1:
+        return map[pos]
 
-  if dest[0] < 0 or dest[1] < 0 or shape[0] <= dest[0] or shape[1] <= dest[1]:
-    return 6
+    shape = map.shape
+    dir = dir_dic[dir]
+    dest = (pos[0] + dir[0], pos[1] + dir[1])
 
-  return map[dest]
+    if dest[0] < 0 or dest[1] < 0 or shape[0] <= dest[0] or shape[1] <= dest[1]:
+        return 6
+
+    return map[dest]
+
 
 def senseVector(map, pos, dir, orientation):
-  vector = np.zeros((len(orientation), 13), dtype=np.int32)
-  for i in range(len(orientation)):
-    if orientation[i] == 'f':
-        vector[i][sense(map, pos, dir)] = 1
-    elif orientation[i] == 'l':
-        vector[i][sense(map, pos, directions[(directions.index(dir) - 1) % 4])] = 1
-    elif orientation[i] == 'r':
-        vector[i][sense(map, pos, directions[(directions.index(dir) + 1) % 4])] = 1
-    elif orientation[i] == 'b':
-        vector[i][sense(map, pos, directions[(directions.index(dir) + 2) % 4])] = 1
-  return vector
+    vector = np.zeros((len(orientation), 13), dtype=np.int32)
+    for i in range(len(orientation)):
+        if orientation[i] == 'f':
+            vector[i][sense(map, pos, dir)] = 1
+        elif orientation[i] == 'l':
+            vector[i][sense(map, pos, directions[(
+                directions.index(dir) - 1) % 4])] = 1
+        elif orientation[i] == 'r':
+            vector[i][sense(map, pos, directions[(
+                directions.index(dir) + 1) % 4])] = 1
+        elif orientation[i] == 'b':
+            vector[i][sense(map, pos, directions[(
+                directions.index(dir) + 2) % 4])] = 1
+    return vector
+
 
 def move(map, pos, dir, command, grabbed, win):
-  if command == 11:
-    dir = directions[directions.index(dir) - 1] 
-  elif command == 12:
-    dir = directions[(directions.index(dir) + 1) % 4]
-  elif command == 13:
-    dir = directions[(directions.index(dir) + 2) % 4]
-  elif command == 3:
-    shape = map.shape
-    calc_dir = dir_dic[dir]
-    dest = (pos[0] + calc_dir[0], pos[1] + calc_dir[1])
-    if dest[0] >= 0 and dest[1] >= 0 and shape[0] > dest[0] and shape[1] > dest[1]:
-      pos = (pos[0] + calc_dir[0], pos[1] + calc_dir[1])
-      dir = reverse_dir_dic[calc_dir];
-  elif command == 0:
-    if map[pos] == 4:
-      grabbed = True
-  elif command == 1:
-    if map[pos] == 5 and grabbed:
-      win = True
-  return pos, dir, grabbed, win, map[pos] == 2
+    if command == 11:
+        dir = directions[directions.index(dir) - 1]
+    elif command == 12:
+        dir = directions[(directions.index(dir) + 1) % 4]
+    elif command == 13:
+        dir = directions[(directions.index(dir) + 2) % 4]
+    elif command == 3:
+        shape = map.shape
+        calc_dir = dir_dic[dir]
+        dest = (pos[0] + calc_dir[0], pos[1] + calc_dir[1])
+        if dest[0] >= 0 and dest[1] >= 0 and shape[0] > dest[0] and shape[1] > dest[1]:
+            pos = (pos[0] + calc_dir[0], pos[1] + calc_dir[1])
+            dir = reverse_dir_dic[calc_dir]
+    elif command == 0:
+        if map[pos] == 4:
+            grabbed = True
+    elif command == 1:
+        if map[pos] == 5 and grabbed:
+            win = True
+    return pos, dir, grabbed, win, map[pos] == 2
 
 
 def infer(vecInpSens: np.int32) -> int:
     return random.choice([0, 1, 3, 11, 12, 13])
 
-def game(infer, movements, enable_print = False):
+
+def game(infer, movements, enable_print=False, avaliate_output=None):
     map = np.array(baseMap, copy=True)
-    pos = (3,3)
+    pos = (3, 3)
     energy = 500
     dir = random.choice(directions)
     win, grabbed, dead = False, False, False
     len_movements = len(movements)
-    while energy >= 0:
-        os.system('cls' if os.name == 'nt' else 'clear')
+    fitness = 0
+    last_command = -1
+    while energy >= 0 or map[pos] != 4:
+        if enable_print:
+            os.system('cls' if os.name == 'nt' else 'clear')
         vector = senseVector(map, pos, dir, movements)
-        command = infer(vector)
-        pos, dir, grabbed, win, dead = move(map, pos, dir, command, grabbed, win)
-        if enable_print: print_state(map, pos, dir)
-        if enable_print: print('Energia: ', energy)
-        if enable_print and grabbed: print('Pegou o ouro')
+        output = infer(vector)
+        command = mapped_movements[output.index(max(output))]
+        if avaliate_output:
+            fitness += avaliate_output(command, vector,
+                                       pos, last_command, map[pos] == 4, grabbed)
+        pos, dir, grabbed, win, dead = move(
+            map, pos, dir, command, grabbed, win)
+        if enable_print:
+            print_state(map, pos, dir)
+            print('Energia: ', energy)
+            print('fitness: ', fitness)
+            if enable_print and grabbed:
+                print('Pegou o ouro')
         energy -= len_movements
+        last_command = command
         if dead:
-            if enable_print: print('Morreu')
+            if enable_print:
+                print('Morreu')
             break
-        if win:
-            if enable_print: print('Venceu')
+        if win or grabbed:
+            if enable_print:
+                print('Venceu')
             break
-        # if enable_print: time.sleep(0.1)
+        if enable_print:
+            time.sleep(0.5)
+    return fitness
+
 
 if __name__ == '__main__':
-    game(infer, ['f','l','r'], enable_print=True)
+    game(infer, ['f', 'l', 'r'], enable_print=True)
