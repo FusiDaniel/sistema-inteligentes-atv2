@@ -5,12 +5,6 @@ import os
 from math import *
 
 '''
-# [ 0][ 1][ 7][10] = ⬜"inp_nothing"          **  sente nada (tem nada na casa requisitada)
-# [ 2][ 6][12] = 😈"inp_danger"           **  sente perigo (casa requisitada/atual tem um Wumpus ou um buraco - morre)
-# [ 3][ 8][ 9][11] = ✨"inp_flash"            **  sente flash (uma casa antes do ouro ele vê o brilho do ouro)
-# [ 4] = 🏆"inp_goal"             **  sente meta (casa requisitada/atual tem ouro - reward, que é a meta)
-# [ 5] = 🏁"inp_initial"          **  sente início (casa requisitada/atual é o ponto de partida/saída)
-
 # [ 0] = ⬜"inp_nothing"          **  sente nada (tem nada na casa requisitada)
 # [ 1] = 🌀"inp_breeze"           **  sente brisa (uma casa antes de um buraco)
 # [ 2] = 😈"inp_danger"           **  sente perigo (casa requisitada/atual tem um Wumpus ou um buraco - morre)
@@ -31,6 +25,14 @@ from math import *
 # [11] = "out_rot_left"         **  ação de rotacionar esq.{"rotate":["left",2]}=90°; {"rotate":["left",1]}=45°
 # [12] = "out_rot_right"        **  ação de rotacionar esq.{"rotate":["right",2]}=90°; {"rotate":["right",1]}=45°
 # [13] = "out_rot_back"         **  ação de rotacionar back.{"rotate":["back",0]}={"rotate":["right",4]}=180°
+
+Simpificação dos inputs:
+# [ 0][ 1][ 7][10] = ⬜"inp_nothing"          **  sente nada (tem nada na casa requisitada)
+# [ 2][ 6][12] = 😈"inp_danger"           **  sente perigo (casa requisitada/atual tem um Wumpus ou um buraco - morre)
+# [ 3][ 8][ 9][11] = ✨"inp_flash"            **  sente flash (uma casa antes do ouro ele vê o brilho do ouro)
+# [ 4] = 🏆"inp_goal"             **  sente meta (casa requisitada/atual tem ouro - reward, que é a meta)
+# [ 5] = 🏁"inp_initial"          **  sente início (casa requisitada/atual é o ponto de partida/saída)
+
 '''
 
 baseMap = np.array([
