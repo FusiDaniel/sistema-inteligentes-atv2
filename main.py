@@ -31,8 +31,8 @@ def avaliate_game(reached, grabbed, win, dead, steppedOnFlash, reachedExit, dumb
     if reachedExit:
         fitness += 30
     if win:
-        fitness += 1000
-    if grabbed and dead:
+        fitness += 100
+    if dead:
         fitness -= 10
 
     fitness -= dumbness
@@ -43,13 +43,17 @@ def avaliate_game(reached, grabbed, win, dead, steppedOnFlash, reachedExit, dumb
 def simplify_vector(vector):
     output = []
     for i in range(len(vector)):
-        simplified_vector = vector[i][:7]
-        if (vector[i][7] == 1 or vector[i][10] == 1):
+        simplified_vector = np.zeros(5)
+        if (vector[i][0] == 1 or vector[i][1] == 1 or vector[i][7] == 1 or vector[i][10] == 1):
+            simplified_vector[0] = 1
+        if (vector[i][2] == 1 or vector[i][6] == 1 or vector[i][12] == 1):
             simplified_vector[1] = 1
-        if (vector[i][8] == 1 or vector[i][9] == 1 or vector[i][11] == 1):
-            simplified_vector[3] = 1
-        if (vector[i][6] == 1 or vector[i][12] == 1):
+        if (vector[i][3] == 1 or vector[i][8] == 1 or vector[i][9] == 1 or vector[i][11] == 1):
             simplified_vector[2] = 1
+        if (vector[i][4] == 1):
+            simplified_vector[3] = 1
+        if (vector[i][5] == 1):
+            simplified_vector[4] = 1
         output.append(simplified_vector)
     return np.array(output)
 
@@ -57,29 +61,33 @@ def simplify_vector(vector):
 def train_ai(genome, config):
     net = neat.nn.RecurrentNetwork.create(genome, config)
 
-    def infer(vecInpSens: np.int32, grabbed) -> int:
-        vector = np.append(simplify_vector(vecInpSens).reshape(
-            1, 21), 1 if grabbed else 0).reshape(1, 22)[0]
+    def infer(vecInpSens: np.int32, onGoal, grabbed, onExit) -> int:
+        vector = simplify_vector(vecInpSens).reshape(1, 15)[0]
+        vector = np.append(vector, 1 if onGoal else 0)
+        vector = np.append(vector, 1 if grabbed else 0)
+        vector = np.append(vector, 1 if onExit else 0)
+        # print(vector)
         output = net.activate(vector)
         return output
-    return game(infer, ['f', 'l', 'r'], False, avaliate_game)
+    return game(infer, ['f', 'l', 'r'], False, avaliate_game, 'baseMap')
 
 
-def run_neat(config):
-    p = neat.Population(config)
-    # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-630')
-    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-6388')
+def run_neat(config, generations, checkpoint=None, fitness_threashhold=800):
+    p = neat.Population(config) if checkpoint == None else neat.Checkpointer.restore_checkpoint(
+        f"neat-checkpoint-{checkpoint}")
+    # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-999')
+    # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-6388')
     # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-4895')
     # p.config.no_fitness_termination = True
     p.config.fitness_criterion = 'mean'
-    p.config.fitness_threshold = 800
+    p.config.fitness_threshold = fitness_threashhold
     # p.config.activation_mutate_rate = 2.0
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
-    p.add_reporter(neat.Checkpointer(1))
+    p.add_reporter(neat.Checkpointer(10))
     pe = neat.ParallelEvaluator(15, train_ai)
-    winner = p.run(pe.evaluate, 100000)  # run for X generations
+    winner = p.run(pe.evaluate, generations)  # run for X generations
     with open("best.pickle", "wb") as f:
         pickle.dump(winner, f)
     print('\nOutput:')
@@ -91,12 +99,16 @@ def test_best_network(config):
         winner = pickle.load(f)
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
 
-    def infer(vecInpSens: np.int32, grabbed) -> int:
-        vector = np.append(simplify_vector(vecInpSens).reshape(
-            1, 21), 1 if grabbed else 0).reshape(1, 22)[0]
+    def infer(vecInpSens: np.int32, onGoal, grabbed, onExit) -> int:
+        vector = simplify_vector(vecInpSens).reshape(1, 15)[0]
+        vector = np.append(vector, 1 if onGoal else 0)
+        vector = np.append(vector, 1 if grabbed else 0)
+        vector = np.append(vector, 1 if onExit else 0)
+        # print(vector)
+        # print(vector)
         output = winner_net.activate(vector)
         return output
-    game(infer, ['f', 'l', 'r'], True, avaliate_game)
+    game(infer, ['f', 'l', 'r'], True, avaliate_game, 'baseMap')
 
 
 if __name__ == '__main__':
@@ -107,5 +119,5 @@ if __name__ == '__main__':
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
-    run_neat(config)
-    # test_best_network(config)
+    # run_neat(config, 200, 1959)
+    test_best_network(config)
