@@ -356,14 +356,14 @@ def game(infer, movements, enable_print=False, avaliate_game=None, mapType='base
     pos_memory = []
     map, pos = None, None
 
-    if mapType == 'random':
-        map, pos = random_map(10)
-    if mapType == 'baseMap':
+    if mapType == 'baseMap': # MAPA FIXO
         map, pos = np.array(baseMap, copy=True), (3, 3)
+    if mapType == 'random': # MAPA ALEATÓRIO
+        map, pos = random_map(10)
 
-    while energy >= 0 and not has_repeating_sequences(pos_memory, 5):
+    # while energy >= 0 and not has_repeating_sequences(pos_memory, 5):
     # while energy >= 0 and not has_repeating_items(pos_memory):
-    # while energy >= 0:
+    while energy >= 0 and not (win or dead):
         # Limpa a tela
         if enable_print:
             os.system('cls' if os.name == 'nt' else 'clear')
@@ -379,7 +379,7 @@ def game(infer, movements, enable_print=False, avaliate_game=None, mapType='base
 
         output = infer(vector, map[pos] == 4, grabbed, map[pos] == 5)
         command = mapped_movements[output.index(max(output))]
-        
+
         command_memory.append(command)
         pos_memory.append((pos, dir))
 
@@ -391,15 +391,13 @@ def game(infer, movements, enable_print=False, avaliate_game=None, mapType='base
         if enable_print:
             print_state(map, pos, dir)
             print('Energia: ', energy)
-            print('Comando: ', command)
-            print('Grabbed: ', grabbed)
-            print('Fitness:', avaliate_game(reached, grabbed, win, dead,
-                  steppedOnFlash, reachedExit, dumbness, post_grab_survive))
-            if enable_print and grabbed:
-                print('Pegou o ouro')
+            if win:
+                print('🏆 VENCEU!!!')
+            elif dead:
+                print('😈 PERDEU')
+            elif grabbed:
+                print('🏆')
             time.sleep(0.005)
-            # if (reached or steppedOnFlash):
-            #     break
 
         if reachedExit and not win:
             break
@@ -423,25 +421,11 @@ def game(infer, movements, enable_print=False, avaliate_game=None, mapType='base
             if map[pos] == 5:
                 reachedExit = True
 
-        # Se morreu ou ganhou, para o jogo
-        if dead:
-            if enable_print:
-                print('Morreu')
-            break
-        if win:
-            if enable_print:
-                print('Venceu')
-            break
-
         energy -= 1
-
-    if enable_print:
-        print('Posições repetidas:', has_repeating_items(pos_memory))
-        print('win' if win else 'lose')
 
     # Avalia o jogo
     if avaliate_game and mapType == 'random' or mapType == 'baseMap':
-        fitness += avaliate_game(reached, grabbed, win, dead, steppedOnFlash, reachedExit, dumbness, post_grab_survive)
+        fitness += avaliate_game(reached, grabbed, win, dead, steppedOnFlash, reachedExit, dumbness)
     return fitness
 
 
