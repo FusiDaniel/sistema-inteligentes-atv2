@@ -5,7 +5,7 @@ import time
 import neat
 import os
 import pickle
-from game import game
+from game import game, generateMap
 
 
 def hasFlash(vecInpSens: np.int32, i: int) -> bool:
@@ -20,11 +20,11 @@ def hasObstacle(vecInpSens: np.int32, i: int) -> bool:
     return vecInpSens[i][2] == 1
 
 
-def avaliate_game(reached, grabbed, win, dead, steppedOnFlash, reachedExit, dumbness):
+def avaliate_game(reachedGoal, grabbed, win, dead, steppedOnFlash, reachedExit, dumbness):
     fitness = 0
     if steppedOnFlash:
         fitness += 5
-    if reached:
+    if reachedGoal:
         fitness += 10
     if grabbed:
         fitness += 20
@@ -65,13 +65,12 @@ def train_ai(genome, config):
         vector = np.append(vector, 1 if onGoal else 0)
         vector = np.append(vector, 1 if grabbed else 0)
         vector = np.append(vector, 1 if onExit else 0)
-        # print(vector)
         output = net.activate(vector)
         return output
-    return game(infer, ['f', 'l', 'r'], False, avaliate_game, 'baseMap')
+    return game(infer, ['f', 'l', 'r'], False, avaliate_game, train_step=2)
 
 
-def run_neat(config, n_generations, checkpoint=None, fitness_threashhold=800):
+def run_neat(config, generations, cores, checkpoint=None, fitness_threashhold=800):
     p = neat.Population(config) if checkpoint == None else neat.Checkpointer.restore_checkpoint(
         f"neat-checkpoint-{checkpoint}")
     p.config.fitness_criterion = 'mean'
@@ -79,16 +78,15 @@ def run_neat(config, n_generations, checkpoint=None, fitness_threashhold=800):
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
-    p.add_reporter(neat.Checkpointer(10))
-    pe = neat.ParallelEvaluator(15, train_ai)
-    winner = p.run(pe.evaluate, n_generations)
+    p.add_reporter(neat.Checkpointer(1))
+    pe = neat.ParallelEvaluator(cores, train_ai)
+    winner = p.run(pe.evaluate, generations)
     with open("best.pickle", "wb") as f:
         pickle.dump(winner, f)
     print('\nOutput:')
-    winner_net = neat.nn.RecurrentNetwork.create(winner, config)
 
 
-def test_best_network(config):
+def test_best_network(config, print_delay):
     with open("best.pickle", "rb") as f:
         winner = pickle.load(f)
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
@@ -100,7 +98,7 @@ def test_best_network(config):
         vector = np.append(vector, 1 if onExit else 0)
         output = winner_net.activate(vector)
         return output
-    game(infer, ['f', 'l', 'r'], True, avaliate_game, 'baseMap')
+    game(infer, ['f', 'l', 'r'], True, avaliate_game, train_step=2, print_delay=print_delay)
 
 if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
@@ -110,15 +108,17 @@ if __name__ == '__main__':
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
     
-    choice = input("Treinar(1), salvar(2) ou testar(3): ")
-    # choice = 3
+    choice = input("Treinar(1), Salvar(2), Testar(3), Mapa novo(4): ")
     checkpoint = 1959
-    populationSize = 200
+    generations = 200
+    
     if choice == "1":
-        run_neat(config, populationSize, avaliate_game, checkpoint)
+        run_neat(config, generations=generations, cores=15, checkpoint=checkpoint)
     elif choice == "2":
-        checkpoint = input("Checkpoint: ")
-        run_neat(config, 1, checkpoint)
+        checkpoint = int(input("Checkpoint: "))
+        run_neat(config, generations=1, cores=15, checkpoint=checkpoint)
+        test_best_network(config, print_delay=0.1)
     elif choice == "3":
-        test_best_network(config)
-
+        test_best_network(config, print_delay=0.1)
+    elif choice == "4":
+        generateMap()

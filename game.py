@@ -45,6 +45,22 @@ baseMap = np.array([
     [0, 0, 7, 0, 0, 0, 1, 3, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ])
+basePos = (3, 3)
+
+baseMap = np.array(
+[[0, 0, 0, 7, 2, 7, 0, 0, 0, 0],
+ [0, 7, 0, 0, 7, 0, 0, 0, 0, 0],
+ [7, 2, 5, 0, 0, 0, 0, 0, 0, 7],
+ [0, 7, 0, 0, 0, 0, 0, 0, 7, 2],
+ [0, 0, 0, 0, 0, 0, 0, 7, 2, 7],
+ [0, 0, 0, 0, 0, 0, 3, 0, 7, 0],
+ [0, 0, 0, 0, 0, 3, 4, 3, 0, 1],
+ [0, 7, 0, 0, 0, 0, 3, 0, 1, 2],
+ [7, 2, 7, 1, 0, 0, 1, 0, 0, 1],
+ [0, 7, 1, 2, 1, 1, 2, 1, 0, 0]]
+)
+basePos = (2, 2)
+
 directions = ['u', 'r', 'd', 'l']
 dir_dic = {'u': (-1, 0), 'd': (1, 0), 'l': (0, -1), 'r': (0, 1)}
 reverse_dir_dic = {(-1, 0): 'u', (1, 0): 'd', (0, -1): 'l', (0, 1): 'r'}
@@ -233,39 +249,8 @@ def move(map, pos, dir, command, grabbed, win):
             win = True
     return pos, dir, grabbed, win, map[pos] == 2
 
-# Talvez essa não seja uma boa ideia porque o algoritmo é recorrente
 
-
-def has_repeating_items(arr):
-    hash_table = set()
-
-    for item in arr:
-        if item in hash_table:
-            return True
-        hash_table.add(item)
-
-    return False
-
-
-def has_repeating_sequences(arr, sequence_length):
-    hash_table = set()
-
-    for i in range(len(arr) - sequence_length + 1):
-        # Get a sequence of specified length
-        sequence = tuple(arr[i:i+sequence_length])
-
-        if sequence in hash_table:
-            return True
-        hash_table.add(sequence)
-
-    return False
-
-
-def infer(vecInpSens: np.int32) -> int:
-    return random.choice([0, 1, 3, 11, 12, 13])
-
-
-def game(infer, movements, enable_print=False, avaliate_game=None, mapType='baseMap'):
+def game(infer, movements, enable_print=False, avaliate_game=None, train_step=2, print_delay=0.1):
     
     fitness = 0
     # TREINAMENTO INICIAL
@@ -347,39 +332,27 @@ def game(infer, movements, enable_print=False, avaliate_game=None, mapType='base
             fitness += 1 if command in expected_commands else 0
 
     # APRENDER A ANDAR PELO MAPA
-
-    energy = 500
+    energy = 200
     dir = random.choice(directions)
-    reached, grabbed, win, dead, steppedOnFlash, reachedExit = False, False, False, False, False, False
-    dumbness, post_grab_survive = 0, 0
+    reachedGoal, grabbed, win, dead, steppedOnFlash, reachedExit = False, False, False, False, False, False
+    dumbness = 0
     command_memory = [-1, -1, -1]
     pos_memory = []
-    map, pos = None, None
 
-    if mapType == 'baseMap': # MAPA FIXO
-        map, pos = np.array(baseMap, copy=True), (3, 3)
-    if mapType == 'random': # MAPA ALEATÓRIO
-        map, pos = random_map(10)
+    map, pos = np.array(baseMap, copy=True), basePos
 
-    # while energy >= 0 and not has_repeating_sequences(pos_memory, 5):
-    # while energy >= 0 and not has_repeating_items(pos_memory):
-    while energy >= 0 and not (win or dead):
-        # Limpa a tela
+    if enable_print:
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print_state(map, pos, dir)
+        time.sleep(1)
+    while energy >= 0 and not (win or dead) and train_step == 2:
         if enable_print:
             os.system('cls' if os.name == 'nt' else 'clear')
-
-        # Recebe os vetores de entradas e retorna saida
+        # Sente o ambiente
         vector = senseVector(map, pos, dir, movements)
-        # if has_repeating_sequences(pos_memory, 3):
-        #     command = random.choice([11, 12])
-        #     pos_memory = []
-        # else:
-        #     output = infer(vector, map[pos] == 4, grabbed, map[pos] == 5)
-        #     command = mapped_movements[output.index(max(output))]
-
+        # Consome a rede neural com o dados sentidos
         output = infer(vector, map[pos] == 4, grabbed, map[pos] == 5)
         command = mapped_movements[output.index(max(output))]
-
         command_memory.append(command)
         pos_memory.append((pos, dir))
 
@@ -387,7 +360,7 @@ def game(infer, movements, enable_print=False, avaliate_game=None, mapType='base
         pos, dir, grabbed, win, dead = move(
             map, pos, dir, command, grabbed, win)
 
-        # Printa o estado
+        # Imprime o estado
         if enable_print:
             print_state(map, pos, dir)
             print('Energia: ', energy)
@@ -397,12 +370,13 @@ def game(infer, movements, enable_print=False, avaliate_game=None, mapType='base
                 print('😈 PERDEU')
             elif grabbed:
                 print('🏆')
-            time.sleep(0.005)
+            time.sleep(print_delay)
 
+        # Penalidades e fim de jogo
         if reachedExit and not win:
             break
         if map[pos] == 4:
-            reached = True
+            reachedGoal = True
         if map[pos] == 3 or map[pos] == 8 or map[pos] == 9 or map[pos] == 11:
             steppedOnFlash = True
         if (vector[0][6] and command == 3) or command_memory[-3:] == [11, 11, 11] or command_memory[-3:] == [12, 12, 12] or command_memory[-2:] == [13, 13] or command_memory[-2:] == [11, 12] or command_memory[-2:] == [12, 11]:
@@ -424,12 +398,18 @@ def game(infer, movements, enable_print=False, avaliate_game=None, mapType='base
         energy -= 1
 
     # Avalia o jogo
-    if avaliate_game and mapType == 'random' or mapType == 'baseMap':
-        fitness += avaliate_game(reached, grabbed, win, dead, steppedOnFlash, reachedExit, dumbness)
+    if avaliate_game and train_step == 2:
+        fitness += avaliate_game(reachedGoal, grabbed, win, dead, steppedOnFlash, reachedExit, dumbness)
     return fitness
 
 
-if __name__ == '__main__':
-    # game(infer, ['f', 'l', 'r'], enable_print=True)
+def generateMap():
     map, pos = random_map(10)
     print_state(map, pos, random.choice(directions))
+
+    print("baseMap = np.array(")
+    print(np.array2string(map, separator=', '))
+    print(")")
+
+    print(f'basePos = {pos}')
+
