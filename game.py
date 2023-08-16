@@ -49,20 +49,6 @@ baseMap = np.array([
 ])
 basePos = (3, 3)
 
-baseMap = np.array(
-[[ 0,  7,  2, 11,  4,  3,  0,  0,  0,  0],
- [ 0,  0,  7,  0,  3,  0,  7,  0,  0,  0],
- [ 0,  0,  0,  0,  0,  7,  2,  7,  0,  0],
- [ 0,  7,  0,  0,  0,  7,  2,  7,  0,  0],
- [ 7,  2,  7,  1,  0,  0,  7,  0,  5,  1],
- [ 0,  7,  1,  2,  1,  0,  0,  0,  1,  2],
- [ 0,  0,  0,  1,  0,  0,  0,  1,  0,  1],
- [ 0,  0,  0,  7,  0,  0,  1,  2,  1,  0],
- [ 0,  0,  7,  2,  7,  0,  0,  1,  0,  0],
- [ 0,  0,  0,  7,  0,  0,  0,  0,  0,  0]]
-)
-basePos = (4, 8)
-
 directions = ['u', 'r', 'd', 'l']
 dir_dic = {'u': (-1, 0), 'd': (1, 0), 'l': (0, -1), 'r': (0, 1)}
 reverse_dir_dic = {(-1, 0): 'u', (1, 0): 'd', (0, -1): 'l', (0, 1): 'r'}
@@ -102,7 +88,7 @@ def random_map(dimensao):
     num_danger_per_quadrant = int(num_danger / 4)
     danger_positions = []
 
-    # Distribute ones in each quadrant
+    # Distribui perigos aleatoriamente nos quadrantes do mapa
     for i in range(2):
         for j in range(2):
             start_row = i * (dimensao // 2)
@@ -118,13 +104,13 @@ def random_map(dimensao):
     wumpus_positions = danger_positions[:num_danger//2]
     hole_positions = danger_positions[num_danger//2:]
 
-    # place wumpus and holes in the map
+    # Popula mapa com wumpus e buracos
     for i in range(len(wumpus_positions)):
         map[wumpus_positions[i][0]][wumpus_positions[i][1]] = 2
     for i in range(len(hole_positions)):
         map[hole_positions[i][0]][hole_positions[i][1]] = 2
 
-    # generate random positions for gold and start that are not in wumpus or hole positions and not in the same position
+    # Gera posição do ouro e do início
     gold_position = np.random.randint(0, dimensao, size=(1, 2))
     while len(np.unique(gold_position, axis=0)) != 1 or np.any(np.all(gold_position == wumpus_positions, axis=1)) or np.any(np.all(gold_position == hole_positions, axis=1)):
         gold_position = np.random.randint(0, dimensao, size=(1, 2))
@@ -132,7 +118,7 @@ def random_map(dimensao):
     while len(np.unique(start_position, axis=0)) != 1 or np.any(np.all(start_position == wumpus_positions, axis=1)) or np.any(np.all(start_position == hole_positions, axis=1)) or np.all(start_position == gold_position):
         start_position = np.random.randint(0, dimensao, size=(1, 2))
 
-    # place gold and start in the map
+    # Posiciona ouro e início no mapa
     map[gold_position[0][0]][gold_position[0][1]] = 4
     map[start_position[0][0]][start_position[0][1]] = 5
 
@@ -140,7 +126,7 @@ def random_map(dimensao):
     holes_indicators_positions = []
     gold_indicators_positions = []
 
-    # fill indicators
+    # Gera indicadores de perigo e ouro
     for item in [(wumpus_positions, wumpus_indicators_positions), (hole_positions, holes_indicators_positions), (gold_position, gold_indicators_positions)]:
         for i in range(len(item[0])):
             row = item[0][i][0]
@@ -155,7 +141,7 @@ def random_map(dimensao):
                 item[1].append((row, col + 1))
 
     all_indicators_positions = []
-
+    
     for i in wumpus_indicators_positions:
         if i in holes_indicators_positions and i in gold_indicators_positions:
             all_indicators_positions.append((i, 8))
@@ -178,16 +164,14 @@ def random_map(dimensao):
     for i in gold_indicators_positions:
         all_indicators_positions.append((i, 3))
 
-    # fill map with indicators
+    # Posiciona indicadores no mapa
     for i in all_indicators_positions:
-        # print(i)
-        # print(2)
         if map[i[0]] == 0:
             map[i[0]] = i[1]
 
     return map, (start_position[0][0], start_position[0][1])
 
-
+# Método que imprime o estado do jogo
 def print_state(map, pos, direction):
     for i in range(map.shape[0]):
         for j in range(map.shape[1]):
@@ -197,7 +181,7 @@ def print_state(map, pos, direction):
                 print(char_vector[map[i][j]], end=' ')
         print()
 
-
+# Método que sente o ambiente em uma direção
 def sense(map, pos, dir=-1):
     if dir == -1:
         return map[pos]
@@ -211,7 +195,7 @@ def sense(map, pos, dir=-1):
 
     return map[dest]
 
-
+# Método que cria um vetor com os dados sentidos em cada direção fornecida
 def senseVector(map, pos, dir, orientation):
     vector = np.zeros((len(orientation), 13), dtype=np.int32)
     for i in range(len(orientation)):
@@ -228,7 +212,7 @@ def senseVector(map, pos, dir, orientation):
                 directions.index(dir) + 2) % 4])] = 1
     return vector
 
-
+# Método que move o persoangem no mapa a partir da posição, comando e direção
 def move(map, pos, dir, command, grabbed, win):
     if command == 11:
         dir = directions[directions.index(dir) - 1]
@@ -251,7 +235,7 @@ def move(map, pos, dir, command, grabbed, win):
             win = True
     return pos, dir, grabbed, win, map[pos] == 2
 
-
+# Instancía um jogo e retorna o fitness
 def game(infer, movements, enable_print=False, avaliate_game=None, train_step=2, print_delay=0.1):
     
     fitness = 0
@@ -274,7 +258,7 @@ def game(infer, movements, enable_print=False, avaliate_game=None, train_step=2,
     # Aprender a chegar no ouro, pegar e sair
     loop = [
             # no ouro
-        ((2,2), 'u', [0], False), ####
+        ((2,2), 'u', [0], False),
         ((2,2), 'u', [11,12,13], True),
         ((2,2), 'l', [3,11,13], True),
         ((2,2), 'r', [3,12,13], True),
@@ -309,7 +293,7 @@ def game(infer, movements, enable_print=False, avaliate_game=None, train_step=2,
     # Aprender a sair da caverna quando tem ouro
     loop = [
         # quando tem ouro
-        ((2,2), 'u', [1], True), #####
+        ((2,2), 'u', [1], True),
         ((3,2), 'u', [3], True),
         ((3,2), 'l', [12], True),
         ((3,2), 'r', [11], True),
@@ -355,6 +339,7 @@ def game(infer, movements, enable_print=False, avaliate_game=None, train_step=2,
         # Consome a rede neural com o dados sentidos
         output = infer(vector, map[pos] == 4, grabbed, map[pos] == 5)
         command = mapped_movements[output.index(max(output))]
+
         command_memory.append(command)
         pos_memory.append((pos, dir))
 
@@ -372,6 +357,8 @@ def game(infer, movements, enable_print=False, avaliate_game=None, train_step=2,
                 print('😈 PERDEU')
             elif grabbed:
                 print('🏆')
+            # if grabbed and command != 0 and command != 3: time.sleep(100)
+
             time.sleep(print_delay)
 
         # Penalidades e fim de jogo
@@ -404,10 +391,13 @@ def game(infer, movements, enable_print=False, avaliate_game=None, train_step=2,
         fitness += avaliate_game(reachedGoal, grabbed, win, dead, steppedOnFlash, reachedExit, dumbness)
     return fitness
 
-
+# Gerador de mapa aleatório
 def generateMap():
-    map, pos = random_map(10)
+    size = int(input("Digite o tamanho n do mapa (n x n): "))
+    map, pos = random_map(size)
     print_state(map, pos, random.choice(directions))
+
+    print("Para usar o mapa, substitua o baseMap e o basePos no arquivo game.py pelos seguintes")
 
     print("baseMap = np.array(")
     print(np.array2string(map, separator=', '))
